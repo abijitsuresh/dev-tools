@@ -1,12 +1,27 @@
 #!/bin/bash
 
-# --- CONFIGURATION (Relative Paths for Portability) ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# --- CONFIGURATION (Location-Aware for Global Path use) ---
+# This resolves the physical location of the script even if called via a symlink or PATH
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" 
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+
+# Now derive other paths relative to the script location
 KAFKA_HOME="$(cd "$SCRIPT_DIR/../kafka/server" && pwd)"
 LOG_DIR="$(cd "$SCRIPT_DIR/../kafka/logs" && pwd)"
-CONFIG="$KAFKA_HOME/config/kraft/server.properties"
+CONFIG="$KAFKA_HOME/config/server.properties"
 PID_FILE="$LOG_DIR/kafka.pid"
 BOOTSTRAP="localhost:9092"
+
+# Safety check: ensure paths were resolved
+if [ ! -d "$KAFKA_HOME" ]; then
+    echo "❌ Error: Kafka home not found at $KAFKA_HOME"
+    exit 1
+fi
 
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
