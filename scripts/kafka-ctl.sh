@@ -27,7 +27,11 @@ case "$1" in
         if [ ! -f "$EVAL_LOG_DIR/meta.properties" ]; then
             echo "🐣 First run: Formatting KRaft storage..."
             CLUSTER_ID=$("$KAFKA_HOME/bin/kafka-storage.sh" random-uuid)
-            "$KAFKA_HOME/bin/kafka-storage.sh" format -t "$CLUSTER_ID" -c "$CONFIG"
+            "$KAFKA_HOME/bin/kafka-storage.sh" format --standalone -t "$CLUSTER_ID" -c "$CONFIG"
+            if [ $? -ne 0 ]; then
+                echo "❌ Storage format failed. Check your config path."
+                exit 1
+            fi
         fi
 
         TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -36,9 +40,29 @@ case "$1" in
         nohup "$KAFKA_HOME/bin/kafka-server-start.sh" "$CONFIG" > "$CURRENT_LOG" 2>&1 &
         echo $! > "$PID_FILE"
         ln -sf "$CURRENT_LOG" "$LOG_DIR/latest.log"
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        CURRENT_LOG="$LOG_DIR/kafka-$TIMESTAMP.log"
+        nohup "$KAFKA_HOME/bin/kafka-server-start.sh" "$CONFIG" > "$CURRENT_LOG" 2>&1 &
+        NEW_PID=$!
+        echo $NEW_PID > "$PID_FILE"
+        ln -sf "$CURRENT_LOG" "$LOG_DIR/latest.log"
         
-        echo "✅ Started Kafka (PID: $(cat "$PID_FILE"))."
-        echo "📜 Logging to: kafka-$TIMESTAMP.log"
+        # 4. Health Check: Wait up to 10 seconds for port 9092
+        echo -n "⏳ Waiting for Kafka to initialize..."
+        for i in {1..10}; do
+            if lsof -Pi :9092 -sTCP:LISTEN -t >/dev/null; then
+                echo -e "\n✅ Started Kafka (PID: $(cat "$PID_FILE"))."
+                echo "📜 Logging to: kafka-$TIMESTAMP.log"
+                exit 0
+            fi
+            echo -n "."
+            sleep 1
+        done
+        
+        echo -e "\n❌ Kafka failed to start. Last few lines of log:"
+        tail -n 10 "$CURRENT_LOG"
+        rm -f "$PID_FILE"
+        exit 1
         ;;
 
     stop)
