@@ -1,15 +1,8 @@
 #!/bin/bash
 
-# --- ROBUST PATH RESOLUTION ---
-# Get the absolute path of the script itself
-# Using 'perl' here because macOS 'readlink' doesn't have the -f flag by default
-SCRIPT_PATH=$(perl -MCwd -e 'print Cwd::abs_path shift' "${BASH_SOURCE[0]}")
-SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
-
-# Derive absolute paths for everything else
-# This ensures that even if you are in /Users/name/Desktop, the script 
-# looks inside /Users/name/development-tools/...
-KAFKA_BASE=$(dirname "$SCRIPT_DIR")
+# --- ZSH PATH RESOLUTION ---
+SCRIPT_DIR=${0:A:h}
+KAFKA_BASE=${SCRIPT_DIR:h}
 KAFKA_HOME="$KAFKA_BASE/kafka/server"
 LOG_DIR="$KAFKA_BASE/kafka/logs"
 CONFIG="$KAFKA_HOME/config/server.properties"
