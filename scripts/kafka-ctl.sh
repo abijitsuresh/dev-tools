@@ -1,18 +1,17 @@
 #!/bin/bash
 
-# --- CONFIGURATION (Location-Aware for Global Path use) ---
-# This resolves the physical location of the script even if called via a symlink or PATH
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
-  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" 
-done
-SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+# --- ROBUST PATH RESOLUTION ---
+# Get the absolute path of the script itself
+# Using 'perl' here because macOS 'readlink' doesn't have the -f flag by default
+SCRIPT_PATH=$(perl -MCwd -e 'print Cwd::abs_path shift' "${BASH_SOURCE[0]}")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 
-# Now derive other paths relative to the script location
-KAFKA_HOME="$(cd "$SCRIPT_DIR/../kafka/server" && pwd)"
-LOG_DIR="$(cd "$SCRIPT_DIR/../kafka/logs" && pwd)"
+# Derive absolute paths for everything else
+# This ensures that even if you are in /Users/name/Desktop, the script 
+# looks inside /Users/name/development-tools/...
+KAFKA_BASE=$(dirname "$SCRIPT_DIR")
+KAFKA_HOME="$KAFKA_BASE/kafka/server"
+LOG_DIR="$KAFKA_BASE/kafka/logs"
 CONFIG="$KAFKA_HOME/config/server.properties"
 PID_FILE="$LOG_DIR/kafka.pid"
 BOOTSTRAP="localhost:9092"
