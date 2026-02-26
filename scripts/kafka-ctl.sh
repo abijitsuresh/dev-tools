@@ -138,8 +138,10 @@ case "$1" in
         else
             echo "📊 Stats for Topic: $2"
             "$KAFKA_HOME/bin/kafka-topics.sh" --describe --topic "$2" --bootstrap-server $BOOTSTRAP
-            echo -e "\n📉 Offset Information:"
-            "$KAFKA_HOME/bin/kafka-run-class.sh" kafka.tools.GetOffsetShell --broker-list $BOOTSTRAP --topic "$2" --time -1
+            echo -e "\n📉 Offset Information (Earliest/Latest):"
+            # Modern way to get offsets in Kafka 4.x
+            "$KAFKA_HOME/bin/kafka-get-offsets.sh" --bootstrap-server $BOOTSTRAP --topic "$2" --time -2 | awk -F: '{print "Partition "$2" Earliest: "$3}'
+            "$KAFKA_HOME/bin/kafka-get-offsets.sh" --bootstrap-server $BOOTSTRAP --topic "$2" --time -1 | awk -F: '{print "Partition "$2" Latest:   "$3}'
         fi
         ;;
 
